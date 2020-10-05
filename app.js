@@ -15,14 +15,46 @@ const USERS = [
         password: '$2b$10$ZkwWGWl2E53SI3CnxEbp7ubM79oGR3wUa.Ijt2F7hHOMqLdVA.kgG',
         isAdmin: true
     }
-]
+];
+
 const INFORMATION = [
     {
         user: 'admin',
         info: 'admin info'
     }
-]
+];
+
 let refreshTokens = []
+
+let OPTIONSMETHOD = 
+  [
+    {method: "post", path: "/users/register", description: "Register, required: email, user, password", example: {email: "user@email.com", name: "user", password: "password"}},
+    {method: "post", path: "/users/login", description: "Login, required: valid email and password", example: {email: "user@email.com", password: "password"}},
+    {method: "post", path: "/users/token", description: "Renew access token, required: valid refresh token", example: {token: "\*Refresh Token\*"}},
+    {method: "post", path: "/users/tokenValidate", description: "Access Token Validation, required: valid access token", example: {authorization: "Bearer \*Access Token\*"}},
+    {method: "get", path: "/api/v1/information", description: "Access user's information, required: valid access token", example: {authorization: "Bearer \*Access Token\*"}},
+    {method: "post", path: "/users/logout", description: "Logout, required: access token", example: {token: "\*Refresh Token\*"}},
+    {method: "get", path: "/users/all", description: "Get users DB, required: Valid access token of admin user", example: {authorization: "Bearer \*Access Token\*"}}
+  ]
+
+app.options('/',(req, res) => {
+  let RestOptions;
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) {
+    RestOptions = OPTIONSMETHOD.slice(0, 2)
+    res.json(RestOptions)
+  }
+  jwt.verify(token, ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      RestOptions = OPTIONSMETHOD.slice(0, 3)
+      res.json(RestOptions)
+    } else req.decoded = decoded;
+  })
+  if (req.decoded.isAdmin) res.json(OPTIONSMETHOD)
+  RestOptions = OPTIONSMETHOD.slice(0,6)
+  res.json(RestOptions)
+})
 
 app.post('/users/register', async (req, res) => {
     if (USERS.some(user => user.email === req.body.email)) {
@@ -82,16 +114,6 @@ app.post('/users/logout', (req, res) => {
     res.status(200).json({message: "User Logged Out Successfully"});
 })
 
-function checkToken (req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
-    if (!token) return res.status(401).json({message: "Access Token Required"});
-    jwt.verify(token, ACCESS_TOKEN_SECRET, (err, decoded) => {
-      if (err) return res.status(403).json({message: "Invalid Access Token"});
-      req.decoded = decoded;
-    });
-    next();
-  };
 
 app.post('/users/tokenValidate',checkToken, (req, res) => {
     res.status(200).json({valid: true})
@@ -101,7 +123,7 @@ app.get('/api/v1/information',checkToken, (req, res) => {
     if (req.decoded.isAdmin) return res.status(200).json(INFORMATION);
     console.log(req.decoded.name)
     const userInfo = INFORMATION.filter(x => req.decoded.name === x.user);
-    console.log(userInfo)
+
     if (userInfo){
         res.status(200).json(userInfo);
     } else ({Authenticated: true, information: "none"});
@@ -111,7 +133,7 @@ app.get('/api/v1/information',checkToken, (req, res) => {
 app.get('/api/v1/users', checkToken, (req, res) => {
     if (req.decoded.isAdmin) return res.status(200).json(USERS);
     res.status(403).json({message: "Invalid Access Token"});
-})
+});
 
 app.post('/users/token', (req, res) => {
     const token = req.body.token;
@@ -128,11 +150,22 @@ app.post('/users/token', (req, res) => {
         const accessToken = jwt.sign(user, ACCESS_TOKEN_SECRET, {expiresIn: '30s'});
         res.json({accessToken});
     
-})})
+})});
 
 app.get('/users/all',checkToken ,(req, res)=>{
     if (!req.decoded.isAdmin) return res.status(403).json({message: "Admin Premissions Required"});
     res.json(USERS)
-  })
+});
+
+function checkToken (req, res, next) {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token) return res.status(401).json({message: "Access Token Required"});
+    jwt.verify(token, ACCESS_TOKEN_SECRET, (err, decoded) => {
+      if (err) return res.status(403).json({message: "Invalid Access Token"});
+      req.decoded = decoded;
+    });
+    next();
+};
 
 module.exports = app
