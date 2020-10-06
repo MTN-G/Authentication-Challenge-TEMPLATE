@@ -19,7 +19,7 @@ const USERS = [
 
 const INFORMATION = [
     {
-        user: 'admin',
+        name: 'admin',
         info: 'admin info'
     }
 ];
@@ -69,7 +69,7 @@ app.post('/users/register', async (req, res) => {
         isAdmin: req.body.isAdmin || false
         }
         const info = {
-            user: req.body.name,
+            name: req.body.name,
             info: `${req.body.name} info`
         }
         USERS.push(user)
@@ -88,7 +88,7 @@ app.post('/users/login', async (req, res) => {
         const validPass = await bcrypt.compare(req.body.password, currentUser.password)
         if (!validPass) return res.status(403).send("User or Password incorrect");
 
-        const accessToken = jwt.sign(currentUser, ACCESS_TOKEN_SECRET, {expiresIn: '30s'});
+        const accessToken = jwt.sign(currentUser, ACCESS_TOKEN_SECRET, {expiresIn: '10s'});
         const refreshToken = jwt.sign(currentUser, REFRESH_TOKEN_SECRET);
         refreshTokens.push(refreshToken);
 
@@ -122,7 +122,7 @@ app.post('/users/tokenValidate',checkToken, (req, res) => {
 app.get('/api/v1/information',checkToken, (req, res) => {
     if (req.decoded.isAdmin) return res.status(200).json(INFORMATION);
     console.log(req.decoded.name)
-    const userInfo = INFORMATION.filter(x => req.decoded.name === x.user);
+    const userInfo = INFORMATION.filter(user => req.decoded.name === user.name);
 
     if (userInfo){
         res.status(200).json(userInfo);
@@ -147,10 +147,10 @@ app.post('/users/token', (req, res) => {
             password: decoded.password, 
             isAdmin: decoded.isAdmin 
           };
-        const accessToken = jwt.sign(user, ACCESS_TOKEN_SECRET, {expiresIn: '30s'});
+        const accessToken = jwt.sign(user, ACCESS_TOKEN_SECRET, {expiresIn: '10s'});
         res.json({accessToken});
-    
-})});
+    })
+});
 
 app.get('/users/all',checkToken ,(req, res)=>{
     if (!req.decoded.isAdmin) return res.status(403).json({message: "Admin Premissions Required"});
@@ -167,5 +167,11 @@ function checkToken (req, res, next) {
     });
     next();
 };
+
+const unknownEndpoint = (req, res) => {
+    res.status(404).send({ error: 'unknown endpoint' })
+}
+
+app.use(unknownEndpoint)
 
 module.exports = app
