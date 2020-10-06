@@ -1,5 +1,4 @@
 import Cookies from 'js-cookie';
-// import { removeTokents } from '../Services/globalVariables';
 
 function Network(endPoint, { body, ...customConfig } = {}) {
     const headers = {
